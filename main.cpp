@@ -1,34 +1,34 @@
-#include <unistd.h>
+#include <iostream>
 #include <stdio.h>
 #include <errno.h>
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/sem.h>
+
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <semaphore.h>
 
 //-------------------------------------------------------------------
 int main(int args, char ** argv) {
 
-    key_t key;
-    if ( (key = ftok("/tmp/sem.temp", 1)) == (key_t) -1) {
-        perror("SysV error: ftok :");
+    sem_t * key;
+    if( (key = sem_open("/test.sem", O_CREAT, 0666, 66)) == SEM_FAILED ) {
+        perror("POSIX error: sem_open :");
         return 0;
     }
 
-    int sem_id;
-    if( (sem_id = semget(key, 16, 0666 | IPC_CREAT)) == -1 ) {
-        perror("SysV error: semget :");
-        return 0;
-    }
-
-    struct sembuf opts[16];
-    for (int i = 0; i < 16; i++) {
-        opts[i].sem_num = i;
-        opts[i].sem_op = i;
-        opts[i].sem_flg = 0;
-    }
-    if( semop(sem_id, opts, 16) == -1 ) {
-        perror("SysV error: semop :");
-        return 0;
+    // next code is not for examination task, it's for me only
+    int t;
+    std::cout << "for close and unlink type '1'" << std::endl;
+    std::cin >> t;
+    if(t == 1) {
+        if( sem_close(key) == -1) {
+            perror("POSIX error: sem_close :");
+            return 0;
+        }
+        if( sem_unlink("/test.sem") == -1 ) {
+            perror("POSIX error: sem_unlink :");
+            return 0;
+        }
+        std::cout << "close and unlink ok" << std::endl;
     }
 
     return 0;

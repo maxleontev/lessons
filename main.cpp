@@ -2,50 +2,61 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
+#include <pthread.h>
 #include <fcntl.h>
 
+#define PID_FILE_NAME "/media/sf_mint/projects/qt/lessons/01/main.pid"
 //-------------------------------------------------------------------
-#define SH_MEM_SIZE 1024 * 1024
-#define SH_MEM_NAME "/test.shm"
+void * thread_func(void *args) {
+    std::cout << "*** thread begin message" << std::endl;
+    sleep(15);
+    std::cout << "*** thread end message" << std::endl;
+    return 0;
+};
 //-------------------------------------------------------------------
 int main(int args, char ** argv) {
 
-    int shm_key;
-    if( (shm_key = shm_open(SH_MEM_NAME, O_CREAT | O_RDWR, 0666))== -1) {
-        perror("POSIX error: shm_open :");
+    pthread_t thread_id;
+    pthread_attr_t attr;
+    if( pthread_attr_init(&attr) != 0 ) {
+        perror("POSIX error: pthread_attr_init :");
         return 0;
     }
-    printf("shm_key : %d\r\n", shm_key);
-
-    if(ftruncate(shm_key, SH_MEM_SIZE) == -1) {
-        perror("POSIX error: ftruncate :");
-        return 0;
-    }
-
-    char * ptr;
-    if( (ptr = (char *) mmap(NULL, SH_MEM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_key, 0)) == (char *) -1) {
-        perror("POSIX error: mmap :");
+    if( pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE) != 0) {
+        perror("POSIX error: pthread_attr_setdetachstate :");
         return 0;
     }
 
-    for(int i=0; i<SH_MEM_SIZE; i++)
-        *(ptr + i) = 13;
-
-    printf("press 1 to unlink shared memory and exit\r\n");
-    int d = 0;
-    std::cin >> d;
-    if(d==1) {
-        if( munmap(ptr, SH_MEM_SIZE) == -1) {
-            perror("POSIX error: munmap :");
-            return 0;
-        }
-        if( shm_unlink(SH_MEM_NAME) == -1) {
-            perror("POSIX error: shm_unlink :");
-            return 0;
-        }
+    if( pthread_create(&thread_id, &attr, &thread_func, NULL) != 0) {
+        perror("POSIX error: pthread_create :");
+        return 0;
     }
+    std::cout << "pthread has been created. thread_id :" << thread_id << std::endl;
+
+    if( pthread_attr_destroy(&attr) != 0) {
+        perror("POSIX error: pthread_attr_destroy :");
+        return 0;
+    }
+
+    pid_t pid = getpid();
+    int fd;
+    if( (fd = open(PID_FILE_NAME, O_RDWR|O_CREAT, 0660))==-1) {
+        perror("open error:");
+        return 0;
+    }
+    if( write (fd, &pid, sizeof(pid_t)) == -1) {
+        perror("write error:");
+        return 0;
+    }
+    std::cout << "PID :" << pid << std::endl;
+
+    std::cout << "waiting for joining" << std::endl;
+    int status;
+    if(pthread_join(thread_id, (void **)&status) != 0) {
+        perror("POSIX error: pthread_join :");
+        return 0;
+    }
+    std::cout << "Ok. pthread returns :" << status << std::endl;
 
     return 0;
 }

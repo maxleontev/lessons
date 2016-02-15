@@ -1,10 +1,8 @@
 #include <iostream>
-
 #include <sys/types.h>
 #include <unistd.h>
 #include <cstdio>
 #include "signal.h"
-
 
 //-------------------------------------------------------------------
 int main(int argc, char *argv[])

@@ -1,29 +1,30 @@
-#include <iostream>
-#include <sys/types.h>
-#include <sys/wait.h>
+#include <stdio.h>
 #include <unistd.h>
-#include <cstdio>
-#include "signal.h"
 
 //-------------------------------------------------------------------
-int main(int argc, char *argv[]) {
-    FILE * f = fopen ("pid_parent","w");
-    fprintf(f, "%d", getpid());
-    fclose(f);
+// who --->(std::out)----> [pfd[1] --- pfd[0]] ---> (std::in) ---> wc -l
+int who_wc()
+{
+    int pfd[2];
+    pipe(pfd);
 
-    pid_t ch_pid = fork();
-
-    if(ch_pid != 0) {
-        f = fopen ("pid_child","w");
-        fprintf(f, "%d", ch_pid);
-        fclose(f);
-
-        while(1) {
-            int st;
-            wait( &st );
-        };
+    if(!fork()){
+        close(STDOUT_FILENO);
+        dup2(pfd[1], STDOUT_FILENO);
+        close(pfd[1]);
+        close(pfd[0]);
+        execlp("who", "who", NULL);
+    } else {
+        close(STDIN_FILENO);
+        dup2(pfd[0], STDIN_FILENO);
+        close(pfd[1]);
+        close(pfd[0]);
+        execlp("wc", "wc", "-l", NULL);
     }
-    while(1);
+}
+//-------------------------------------------------------------------
+int main(int argc, char *argv[]){
+    who_wc();
     return 0;
 }
 //-------------------------------------------------------------------

@@ -1,37 +1,42 @@
 #include <iostream>
+#include <unistd.h>
 #include <stdio.h>
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
+#include <errno.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 
 //-------------------------------------------------------------------
-#define SH_MEM_SIZE 1024 * 1024 * 2
+#define SH_MEM_SIZE 1024 * 1024
+#define SH_MEM_NAME "/test.shm"
+
 //-------------------------------------------------------------------
 int main() {
-    key_t key;
-    if ( (key = ftok("/tmp/mem.temp", 1)) == (key_t) -1) {
-        perror("SysV error: ftok :");
+    int shm_key;
+    if( (shm_key = shm_open(SH_MEM_NAME, O_RDONLY, 0666))== -1) {
+        perror("POSIX error: shm_open :");
         return 0;
     }
-    printf("key : %d\r\n", key);
+    printf("shm_key : %d\r\n", shm_key);
 
-    int shm_id;
-    if( (shm_id = shmget(key, SH_MEM_SIZE, 0666)) == -1) {
-        perror("SysV error: shmget :");
+/*    if(ftruncate(shm_key, SH_MEM_SIZE) == -1) {
+        perror("POSIX error: ftruncate :");
+        return 0;
+    }*/
+
+    char * ptr;
+    if( (ptr = (char *) mmap(NULL, SH_MEM_SIZE, PROT_READ, MAP_SHARED, shm_key, 0)) == (char *) -1) {
+        perror("POSIX error: mmap :");
         return 0;
     }
 
-    printf("shm_id : %d\r\n", shm_id);
+    printf("%d %d %d %d\r\n", *(ptr + 0), *(ptr + 1), *(ptr + 2), *(ptr + 3) );
 
-    char * shm;
-    if( (shm = (char *) shmat(shm_id, NULL, 0)) == (char *) -1) {
-          perror("SysV error: shmat :");
-          return 0;
+    if( munmap(ptr, SH_MEM_SIZE) == -1) {
+        perror("POSIX error: munmap :");
+        return 0;
     }
-
-    printf("%d %d %d %d \r\n", *(shm+0), *(shm+1), *(shm+2), *(shm+3) );
-
     return 0;
 }
 //-------------------------------------------------------------------

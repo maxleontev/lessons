@@ -2,44 +2,47 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 //-------------------------------------------------------------------
-#define SH_MEM_SIZE 1024 * 1024 * 2
+#define SH_MEM_SIZE 1024 * 1024
+#define SH_MEM_NAME "/test.shm"
 //-------------------------------------------------------------------
 int main(int args, char ** argv) {
 
-    key_t key;
-    if ( (key = ftok("/tmp/mem.temp", 1)) == (key_t) -1) {
-        perror("SysV error: ftok :");
+    int shm_key;
+    if( (shm_key = shm_open(SH_MEM_NAME, O_CREAT | O_RDWR, 0666))== -1) {
+        perror("POSIX error: shm_open :");
         return 0;
     }
-    printf("key : %d\r\n", key);
+    printf("shm_key : %d\r\n", shm_key);
 
-    int shm_id;
-    if( (shm_id = shmget(key, SH_MEM_SIZE, IPC_CREAT | 0666)) == -1) {
-        perror("SysV error: shmget :");
+    if(ftruncate(shm_key, SH_MEM_SIZE) == -1) {
+        perror("POSIX error: ftruncate :");
         return 0;
     }
-    printf("shm_id : %d\r\n", shm_id);
 
-    char * shm;
-    if( (shm = (char *) shmat(shm_id, NULL, 0)) == (char *) -1) {
-          perror("SysV error: shmat :");
-          return 0;
+    char * ptr;
+    if( (ptr = (char *) mmap(NULL, SH_MEM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_key, 0)) == (char *) -1) {
+        perror("POSIX error: mmap :");
+        return 0;
     }
 
-    for (int i = 0; i < 1024 * 1024; i++)
-            *(shm + i) = i%127;
+    for(int i=0; i<SH_MEM_SIZE; i++)
+        *(ptr + i) = 13;
 
-    printf("press 1 to detach shared memory and exit\r\n");
+    printf("press 1 to unlink shared memory and exit\r\n");
     int d = 0;
     std::cin >> d;
     if(d==1) {
-        if( shmdt(shm) == -1) {
-            perror("SysV error: shmdt :");
+        if( munmap(ptr, SH_MEM_SIZE) == -1) {
+            perror("POSIX error: munmap :");
+            return 0;
+        }
+        if( shm_unlink(SH_MEM_NAME) == -1) {
+            perror("POSIX error: shm_unlink :");
             return 0;
         }
     }

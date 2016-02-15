@@ -1,43 +1,34 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
-#include <mqueue.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
 
 //-------------------------------------------------------------------
+int main(int args, char ** argv) {
 
-#define POSIX_MSG_F_NAME "/test.mq"
-//#define MSG_FILE_NAME "/home/box/message.txt"
-#define MSG_FILE_NAME "/media/sf_mint/projects/qt/lessons/01/mess.txt"
-
-#define MAX_SIZE 1024
-
-using namespace std;
-//-------------------------------------------------------------------
-int main(int argc, char *argv[]) {
-    mqd_t mq_key;
-
-    struct mq_attr attr;
-    attr.mq_flags = O_NONBLOCK;
-    attr.mq_maxmsg = 10;
-    attr.mq_msgsize = MAX_SIZE;
-    attr.mq_curmsgs = 0;
-
-    if( (mq_key = mq_open(POSIX_MSG_F_NAME, O_RDONLY|O_NONBLOCK|O_CREAT, 0660, &attr) ) == (mqd_t) -1 ) {
-        perror("POSIX error: mq_open :");
+    key_t key;
+    if ( (key = ftok("/tmp/sem.temp", 1)) == (key_t) -1) {
+        perror("SysV error: ftok :");
         return 0;
     }
-    char buff[MAX_SIZE];
-    ssize_t res;
-    while(1) {
-        res = mq_receive(mq_key, buff, MAX_SIZE, NULL);
-        if(res != -1) {
-            int f = open (MSG_FILE_NAME, O_RDWR|O_CREAT, 0660);
-            if( write(f, buff, res) == -1){
-                perror("write error:");
-                return 0;
-            }
-            close(f);
-        }
+
+    int sem_id;
+    if( (sem_id = semget(key, 16, 0666 | IPC_CREAT)) == -1 ) {
+        perror("SysV error: semget :");
+        return 0;
+    }
+
+    struct sembuf opts[16];
+    for (int i = 0; i < 16; i++) {
+        opts[i].sem_num = i;
+        opts[i].sem_op = i;
+        opts[i].sem_flg = 0;
+    }
+    if( semop(sem_id, opts, 16) == -1 ) {
+        perror("SysV error: semop :");
+        return 0;
     }
 
     return 0;

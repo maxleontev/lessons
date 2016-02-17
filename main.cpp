@@ -3,15 +3,23 @@
 //-------------------------------------------------------------------
 int main(int args, char ** argv) {
 
-int n=0;
-#pragma omp parallel num_threads(2)
+#pragma omp sections
 {
 
-    // atomic operation
-    #pragma omp atomic
-        n++;
+#pragma omp section
+{
+    for(int i=0;i<100000;i++) {
+        std::cout << "section 1 :" << i << std::endl;
+    }
+}
 
-    std::cout << n << std::endl;
+#pragma omp section
+{
+    for(int i=0;i<100000;i++) {
+        std::cout << "section 2 :" << i << std::endl;
+    }
+}
+
 }
     return 0;
 }

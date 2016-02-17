@@ -3,22 +3,14 @@
 //-------------------------------------------------------------------
 int main(int args, char ** argv) {
 
-    long long sum = 0;
-    for(int i=0; i<500000; i++) {
-        sum = sum + i;
-    }
-    std::cout << sum << std::endl;
-
-
-#pragma omp parallel num_threads(3)
+#pragma omp parallel num_threads(4)
 {
-    sum = 0;
-#pragma opm parallel for reduction(+:sum)
-    for(int i=0; i<500000; i++) {
-        sum = sum + i;
-    }
+    std::cout << 1 << std::endl;
+    std::cout << 2 << std::endl;
+    #pragma omp barrier
+    std::cout << 3 << std::endl;
 }
-    std::cout << sum << std::endl;
+
     return 0;
 }
 //-------------------------------------------------------------------

@@ -6,6 +6,10 @@ Branch 'parallel_prg' consists of examples of the course module "Parallel progra
 
 # Docs
 http://openmp.org/wp/
+
 http://www.openmp.org/mp-documents/openmp-4.5.pdf
+
 http://openmp.org/mp-documents/openmp-examples-4.0.2.pdf
+
 https://en.wikipedia.org/wiki/OpenMP
+

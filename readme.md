@@ -2,4 +2,4 @@
 This is my stepic.org lessons homeworks repository
 
 # Branch description
-Branch 'terminal_tasks' consists of tasks that are tested in the training terminal
+Branch 'parallel_prg' consists of examples of the course module "Parallel programming"

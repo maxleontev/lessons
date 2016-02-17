@@ -5,13 +5,16 @@ int main(int args, char ** argv) {
 
 #pragma omp parallel num_threads(4)
 {
-    std::cout << 1 << std::endl;
-    #pragma omp single nowait
-    {
-        std::cout << 2 << std::endl;
+#pragma omp for ordered
+    for(int i=0; i< 10000000;i++) {
+        std::cout << "Cycle " << i << std::endl;
+        #pragma omp ordered
+        {
+            std::cout << "             " << i << std::endl;
+        }
     }
-    std::cout << 3 << std::endl;
 }
+
     return 0;
 }
 //-------------------------------------------------------------------

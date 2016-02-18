@@ -1,79 +1,45 @@
-#include <iostream>
-#include <fstream>
-#include <sstream>
 #include <vector>
-#include <algorithm>
+#include <iostream>
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-
-#include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
+#include <tbb/parallel_reduce.h>
 
-using namespace std;
 //-------------------------------------------------------------------
-
-void Foo(int k, int p_beg) {
-    std::cout << p_beg << " :---: " << k << std::endl;
-}
-//-------------------------------------------------------------------
-void SerialApplyFoo(int arr[], size_t size) {
-    for(size_t i=0; i<size; i++)
-        Foo(arr[i], 0);
-}
-//-------------------------------------------------------------------
-class ApplyFoo {
-    int * my_a;
+class SumFoo {
+    const int * my_arr;
 public:
-    void operator()(const tbb::blocked_range<size_t> & r) const {
-        int * a = my_a;
+    int my_sum;
+    void operator()(const tbb::blocked_range<size_t> & r)  {
+        int * a = (int *) my_arr;
+        int sum = my_sum;
+        size_t end = r.end();
         for(size_t i=r.begin(); i!=r.end(); ++i)
-            Foo(a[i], r.begin());
+            sum += a[i];
+        my_sum = sum;
     }
-    ApplyFoo(int a[]) : my_a(a) {}
+
+    SumFoo(SumFoo &x, tbb::split) : my_arr(x.my_arr), my_sum(0) {
+    }
+
+    void join(const SumFoo &y) {
+        my_sum += y.my_sum;
+    }
+    SumFoo(const int a[]) : my_arr(a), my_sum(0) {}
 };
 //-------------------------------------------------------------------
-void ParallelApplyFoo(int arr[], size_t size) {
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, size, 10),
-                      ApplyFoo(arr),
-                      tbb::simple_partitioner() );
+int ParallelSumFoo(const int arr[], size_t size) {
+    SumFoo sf(arr);
+    tbb::parallel_reduce(tbb::blocked_range<size_t>(0, size), sf);
+    return sf.my_sum;
 }
 //-------------------------------------------------------------------
-int main(int argc, char ** argv) {
-
-/*    if(argc < 2) {
-        cout << "argument is absent" << endl;
-        return 0;
-    }
-    int f;
-    if( (f = open(argv[1], O_RDWR)) == -1) {
-        perror("open file error : ");
-        return 0;
-    }
-    if( close(f) == -1 ) {
-        perror("error closing input file : ");
-        return 0;
-    }
-
-    ifstream if_str(argv[1]);
-
-    int k;*/
-    vector <int> data;
-//    while(if_str >> k)
+int main() {
+    std::vector <int> data;
     for(int i=0;i<500;i++)
         data.push_back(i);
 
-    ParallelApplyFoo(data.data(), data.size());
-//    SerialApplyFoo(data.data(), data.size());
-
-/*    ofstream of_str("out.txt");
-    for(auto it : data) {
-        of_str << it;
-        if(it != data.back())
-            of_str << " ";
-    }*/
+    int res = ParallelSumFoo( data.data(), data.size() );
+    std::cout << res << std::endl;
 
     return 0;
 }

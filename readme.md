@@ -17,3 +17,8 @@ Intel TBB:
 * https://software.intel.com/en-us/node/506039
 * Developer Guide : https://software.intel.com/en-us/node/506045
 * Developer Reference Manual: https://software.intel.com/en-us/node/506130
+
+MPI
+* http://www.mpi-forum.org/docs/docs.html
+* http://www.mpi-forum.org/docs/mpi-3.1/mpi31-report.pdf
+* https://www.mpich.org/documentation/guides/

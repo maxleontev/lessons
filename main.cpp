@@ -1,35 +1,16 @@
-#include <iostream>
-#include <list>
+#include <stdio.h>
+#include <mpi.h>
+//-------------------------------------------------------------------
+int main(int argc, char ** argv) {
 
-#include <tbb/parallel_do.h>
+    int rank, size;
+    MPI::Init(argc, argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-//-------------------------------------------------------------------
-void Foo(int k) {
-    std::cout << k << std::endl;
-}
-//-------------------------------------------------------------------
-void SerialApplyFooToList(const std::list <int> & list) {
-    for( std::list<int>::const_iterator it = list.begin(); it != list.end() ; it++  ){
-        Foo(*it);
-    }
-}
-//-------------------------------------------------------------------
-class ApplyFoo {
-public:
-    void operator()(const int & item) const { Foo(item); }
-};
-//-------------------------------------------------------------------
-void ParallelApplyFooToList(const std::list <int> & list) {
-    tbb::parallel_do(list.begin(), list.end(), ApplyFoo());
-}
-//-------------------------------------------------------------------
-int main() {
-    std::list <int> list;
-    for(int i=0;i<500;i++)
-        list.push_back(i);
+    printf("process %d of %d\r\n", rank, size);
 
-//    SerialApplyFooToList(list);
-    ParallelApplyFooToList(list);
+    MPI::Finalize();
 
     return 0;
 }

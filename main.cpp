@@ -1,68 +1,85 @@
-#include <stdio.h>
-#include <netinet/in.h>
-#include <ev.h>
-#include <strings.h>
+#include <event2/listener.h>
+#include <event2/bufferevent.h>
+#include <event2/buffer.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
+#include <unistd.h>
+
+#define UNIX_SOCKET_PATH "/tmp/echo.sock"
 
 //-------------------------------------------------------------------
-void readCallBack(struct ev_loop *loop, struct ev_io *watcher, int revents) {
-    char buffer[1024];
-    ssize_t r = recv(watcher->fd, buffer, 1024, MSG_NOSIGNAL);
-    if(r < 0) {
-        return;
-    } else if(r == 0) {
-        ev_io_stop(loop, watcher);
-        free(watcher);
-        return;
-    } else {
-        send(watcher->fd, buffer, r, MSG_NOSIGNAL);
+static void echo_read_cb(struct bufferevent *bev, void *ctx){
+    struct evbuffer *input = bufferevent_get_input(bev);
+    struct evbuffer *output = bufferevent_get_output(bev);
+
+    size_t length = evbuffer_get_length(input);
+    char *data;
+    data = (char*)malloc(length);
+    evbuffer_copyout(input, data, length);
+    printf("data: %s\n", data);
+
+    evbuffer_add_buffer(output, input);
+    free(data);
+}
+//-------------------------------------------------------------------
+static void echo_event_cb(struct bufferevent *bev, short events, void *ctx) {
+    if(events & BEV_EVENT_ERROR) {
+        perror("echo_event_cb() : Error");
+        bufferevent_free(bev);
+    }
+    if(events & BEV_EVENT_EOF) {
+        bufferevent_free(bev);
     }
 }
 //-------------------------------------------------------------------
-void acceptCallback(struct ev_loop *loop, struct ev_io *watcher, int revents) {
-    int clientSockDescr = accept(watcher->fd, 0, 0);
-
-    struct ev_io *clientWatcher = (struct ev_io*) malloc(sizeof(struct ev_io));
-
-    ev_io_init(clientWatcher, readCallBack, clientSockDescr, EV_READ);
-    ev_io_start(loop, clientWatcher);
+static void accept_conn_cb(struct evconnlistener * listener,
+                           evutil_socket_t fd,
+                           struct sockaddr *address,
+                           int socklen,
+                           void *ctx) {
+    struct event_base *base = evconnlistener_get_base(listener);
+    struct bufferevent *bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
+    bufferevent_setcb(bev, echo_read_cb, NULL, echo_event_cb, NULL);
+    bufferevent_enable(bev, EV_READ | EV_WRITE);
+}
+//-------------------------------------------------------------------
+static void accept_error_cb(struct evconnlistener * listener,
+                           void *ctx) {
+    struct event_base *base = evconnlistener_get_base(listener);
+    int err = EVUTIL_SOCKET_ERROR();
+    fprintf(stderr, "Error %d : \"%s\"\n", err, evutil_socket_error_to_string(err) );
+    event_base_loopexit(base, NULL);
 }
 //-------------------------------------------------------------------
 int main(int argc, char **argv)
 {
-    struct ev_loop *mainLoop = ev_default_loop(0);
+    struct event_base *base = event_base_new();
+    struct sockaddr_un sun;
+    memset(&sun, 0, sizeof(sun));
+    sun.sun_family = AF_UNIX;
+    strcpy(sun.sun_path, UNIX_SOCKET_PATH);
+    unlink(sun.sun_path);
 
-    int sockDescr;
-    if( (sockDescr = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1 ) {
-        perror("socket() error : ");
-        return 0;
+    struct evconnlistener *listener = evconnlistener_new_bind(base,
+        accept_conn_cb, NULL,
+        LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE,
+        -1, (struct sockaddr*)&sun, sizeof(sun));
+    if (!listener) {
+        perror("Error evconnlistener_new_bind() :");
+        return 1;
     }
 
-    struct sockaddr_in addr;
-    bzero(&addr, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(12345);
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-    if( bind(sockDescr, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
-        perror("bind() error : ");
-        return 0;
-    }
-
-    if( listen(sockDescr, SOMAXCONN) == -1) {
-        perror("listen() error : ");
-        return 0;
-    }
-
-    struct ev_io acceptWatcher;
-    ev_io_init(&acceptWatcher, acceptCallback, sockDescr, EV_READ);
-
-    ev_io_start(mainLoop, &acceptWatcher);
-
-    while(1) {
-        ev_loop(mainLoop, 0);
-    }
+    evconnlistener_set_error_cb(listener, accept_error_cb);
+    event_base_dispatch(base);
 
     return 0;
 }
 //-------------------------------------------------------------------
+
+// type this for test:
+// echo -n 'test' | nc -U /tmp/echo.sock

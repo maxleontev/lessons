@@ -1,2 +1,2 @@
 all:
-	g++ main.cpp -lev -std=c++11 -o m
+	gcc -levent main.cpp -o m -levent

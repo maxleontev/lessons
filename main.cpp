@@ -5,7 +5,7 @@
 #include <stdlib.h>
 
 //-------------------------------------------------------------------
-void read_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
+void readCallBack(struct ev_loop *loop, struct ev_io *watcher, int revents) {
     char buffer[1024];
     ssize_t r = recv(watcher->fd, buffer, 1024, MSG_NOSIGNAL);
     if(r < 0) {
@@ -19,36 +19,48 @@ void read_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
     }
 }
 //-------------------------------------------------------------------
-void accept_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
-    int client_sd = accept(watcher->fd, 0, 0);
+void acceptCallback(struct ev_loop *loop, struct ev_io *watcher, int revents) {
+    int clientSockDescr = accept(watcher->fd, 0, 0);
 
-    struct ev_io *w_client = (struct ev_io*) malloc(sizeof(struct ev_io));
+    struct ev_io *clientWatcher = (struct ev_io*) malloc(sizeof(struct ev_io));
 
-    ev_io_init(w_client, read_cb, client_sd, EV_READ);
-    ev_io_start(loop, w_client);
+    ev_io_init(clientWatcher, readCallBack, clientSockDescr, EV_READ);
+    ev_io_start(loop, clientWatcher);
 }
 //-------------------------------------------------------------------
 int main(int argc, char **argv)
 {
-    struct ev_loop *loop = ev_default_loop(0);
+    struct ev_loop *mainLoop = ev_default_loop(0);
 
-    int sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    int sockDescr;
+    if( (sockDescr = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1 ) {
+        perror("socket() error : ");
+        return 0;
+    }
+
     struct sockaddr_in addr;
     bzero(&addr, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_port = htons(12345);
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    bind(sd, (struct sockaddr*)&addr, sizeof(addr));
 
-    listen(sd, SOMAXCONN);
+    if( bind(sockDescr, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+        perror("bind() error : ");
+        return 0;
+    }
 
-    struct ev_io w_accept;
-    ev_io_init(&w_accept, accept_cb, sd, EV_READ);
+    if( listen(sockDescr, SOMAXCONN) == -1) {
+        perror("listen() error : ");
+        return 0;
+    }
 
-    ev_io_start(loop, &w_accept);
+    struct ev_io acceptWatcher;
+    ev_io_init(&acceptWatcher, acceptCallback, sockDescr, EV_READ);
+
+    ev_io_start(mainLoop, &acceptWatcher);
 
     while(1) {
-        ev_loop(loop, 0);
+        ev_loop(mainLoop, 0);
     }
 
     return 0;

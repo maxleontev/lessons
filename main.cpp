@@ -10,8 +10,6 @@
 #include <errno.h>
 #include <unistd.h>
 
-#define UNIX_SOCKET_PATH "/tmp/echo.sock"
-
 //-------------------------------------------------------------------
 static void echo_read_cb(struct bufferevent *bev, void *ctx){
     struct evbuffer *input = bufferevent_get_input(bev);
@@ -56,19 +54,19 @@ static void accept_error_cb(struct evconnlistener * listener,
     event_base_loopexit(base, NULL);
 }
 //-------------------------------------------------------------------
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     struct event_base *base = event_base_new();
-    struct sockaddr_un sun;
-    memset(&sun, 0, sizeof(sun));
-    sun.sun_family = AF_UNIX;
-    strcpy(sun.sun_path, UNIX_SOCKET_PATH);
-    unlink(sun.sun_path);
+
+    struct sockaddr_in sin;
+    memset(&sin, 0, sizeof(sin));
+    sin.sin_family = AF_INET;
+    sin.sin_port = htons(12345);
+    sin.sin_addr.s_addr = htonl(INADDR_ANY);
 
     struct evconnlistener *listener = evconnlistener_new_bind(base,
         accept_conn_cb, NULL,
         LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE,
-        -1, (struct sockaddr*)&sun, sizeof(sun));
+        -1, (struct sockaddr*)&sin, sizeof(sin));
     if (!listener) {
         perror("Error evconnlistener_new_bind() :");
         return 1;
@@ -80,6 +78,3 @@ int main(int argc, char **argv)
     return 0;
 }
 //-------------------------------------------------------------------
-
-// type this for test:
-// echo -n 'test' | nc -U /tmp/echo.sock

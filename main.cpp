@@ -4,18 +4,23 @@
 #include <strings.h>
 #include <stdlib.h>
 
+#include "html_parcer.h"
+//-------------------------------------------------------------------
+#define BUFF_SIZE 1024*1024
+char mainDataBuffer[BUFF_SIZE];
+
 //-------------------------------------------------------------------
 void readCallBack(struct ev_loop *loop, struct ev_io *watcher, int revents) {
-    char buffer[1024];
-    ssize_t r = recv(watcher->fd, buffer, 1024, MSG_NOSIGNAL);
-    if(r < 0) {
+    ssize_t recv_s = recv(watcher->fd, mainDataBuffer, BUFF_SIZE, MSG_NOSIGNAL);
+    if(recv_s < 0) {
         return;
-    } else if(r == 0) {
+    } else if(recv_s == 0) {
         ev_io_stop(loop, watcher);
         free(watcher);
         return;
     } else {
-        send(watcher->fd, buffer, r, MSG_NOSIGNAL);
+        int snd_s = HtmlParcer(mainDataBuffer, recv_s);
+        send(watcher->fd, mainDataBuffer, snd_s, MSG_NOSIGNAL);
     }
 }
 //-------------------------------------------------------------------

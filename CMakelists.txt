@@ -2,8 +2,10 @@ cmake_minimum_required(VERSION 2.8) # Проверка версии CMake.
 
 project(final_task)
 	
-set(SOURCE_CPP main.cpp)
+set(MAIN_CPP main.cpp)
+set(LIB_HTML_CPP html_parcer.cpp)
 
-add_executable(m ${SOURCE_CPP})
+add_library(html_parcer ${LIB_HTML_CPP})
+add_executable(m ${MAIN_CPP})
 
-target_link_libraries(m ev)
+target_link_libraries(m html_parcer ev)

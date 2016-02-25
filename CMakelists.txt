@@ -1,0 +1,9 @@
+cmake_minimum_required(VERSION 2.8) # Проверка версии CMake.
+
+project(final_task)
+	
+set(SOURCE_CPP main.cpp)
+
+add_executable(m ${SOURCE_CPP})
+
+target_link_libraries(m ev)

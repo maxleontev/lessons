@@ -5,14 +5,14 @@
 #include <strings.h>
 #include <string.h>
 #include <stdlib.h>
+#include <thread>
 
 #include "html_parcer.h"
-//-------------------------------------------------------------------
 #define BUFF_SIZE 1024*1024
-char mainDataBuffer[BUFF_SIZE];
 
 //-------------------------------------------------------------------
 void readCallBack(struct ev_loop *loop, struct ev_io *watcher, int revents) {
+    char mainDataBuffer[BUFF_SIZE];
     ssize_t recv_s = recv(watcher->fd, mainDataBuffer, BUFF_SIZE, MSG_NOSIGNAL);
     if(recv_s < 0) {
         return;
@@ -26,31 +26,32 @@ void readCallBack(struct ev_loop *loop, struct ev_io *watcher, int revents) {
         ev_io_stop(loop, watcher);
         close(watcher->fd);
         free(watcher);
+        ev_loop_destroy(loop);
     }
 }
 //-------------------------------------------------------------------
-void acceptCallback(struct ev_loop *loop, struct ev_io *watcher, int revents) {
+void clientThread(struct ev_io *watcher ) {
     int clientSockDescr = accept(watcher->fd, 0, 0);
 
     struct ev_io *clientWatcher = (struct ev_io*) malloc(sizeof(struct ev_io));
-
     ev_io_init(clientWatcher, readCallBack, clientSockDescr, EV_READ);
-    ev_io_start(loop, clientWatcher);
+
+    struct ev_loop *threadLoop = ev_loop_new(EVFLAG_AUTO);
+    ev_io_start(threadLoop, clientWatcher);
+    ev_run(threadLoop, 0);
+}
+//-------------------------------------------------------------------
+void acceptCallback(struct ev_loop *loop, struct ev_io *watcher, int revents) {
+    std::thread thr(clientThread, watcher);
+    thr.detach();
 }
 //-------------------------------------------------------------------
 
 int mainSockDescr;
-
 //-------------------------------------------------------------------
 void term_handler(int i)
 {
     shutdown(mainSockDescr, SHUT_RDWR);
-/*    if(i == SIGINT)
-        printf ("Terminating by SIGINT.\n");
-    else if(i == SIGTERM)
-        printf ("Terminating by SIGTERM.\n");
-    else
-        printf ("Terminating.\n");*/
     exit(EXIT_SUCCESS);
 }
 //-------------------------------------------------------------------
@@ -95,7 +96,6 @@ int main(int argc, char **argv)
         printf("starting in normal mode\r\n");
     }
 
-    struct ev_loop *mainLoop = ev_default_loop(0);
     if( (mainSockDescr = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1 ) {
         if(!daemon)
             perror("socket() error : ");
@@ -120,6 +120,7 @@ int main(int argc, char **argv)
         return 0;
     }
 
+    struct ev_loop *mainLoop = ev_default_loop(0);
     struct ev_io acceptWatcher;
     ev_io_init(&acceptWatcher, acceptCallback, mainSockDescr, EV_READ);
     ev_io_start(mainLoop, &acceptWatcher);

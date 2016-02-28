@@ -1,7 +1,7 @@
 all: m
 
 m: main.o html_parcer.o
-	g++ main.o html_parcer.o -o m -lev
+	g++ main.o html_parcer.o -o m -lev -lpthread
 
 main.o: main.cpp
 	g++ -std=c++11 -c main.cpp

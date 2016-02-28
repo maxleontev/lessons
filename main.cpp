@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <ev.h>
@@ -75,12 +74,10 @@ int main(int argc, char **argv)
         }
     }
     if(ip_addr == "" || ip_port == -1 || htmlFilesDir == "") {
-        printf("invalid arguments\r\n");
         return 0;
     }
 
     if(daemon) {
-        printf("starting in daemon mode\r\n");
         if( fork() ) {
             return 0;
         }
@@ -92,13 +89,9 @@ int main(int argc, char **argv)
         close(STDIN_FILENO);
         close(STDOUT_FILENO);
         close(STDERR_FILENO);
-    } else {
-        printf("starting in normal mode\r\n");
     }
 
     if( (mainSockDescr = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1 ) {
-        if(!daemon)
-            perror("socket() error : ");
         return 0;
     }
 
@@ -109,14 +102,10 @@ int main(int argc, char **argv)
     addr.sin_addr.s_addr = inet_addr(ip_addr.c_str());
 
     if( bind(mainSockDescr, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
-        if(!daemon)
-            perror("bind() error : ");
         return 0;
     }
 
     if( listen(mainSockDescr, SOMAXCONN) == -1) {
-        if(!daemon)
-            perror("listen() error : ");
         return 0;
     }
 
@@ -136,7 +125,6 @@ int main(int argc, char **argv)
     sa.sa_mask = newset;
     sigaction(SIGTERM, &sa, 0);
     sigaction(SIGINT, &sa, 0);
-
 
     while(1) {
         ev_loop(mainLoop, 0);

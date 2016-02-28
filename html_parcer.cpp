@@ -72,9 +72,6 @@ int HtmlParcer(char * buff, ssize_t size) {
 
     sprintf(buff, "%s", res.c_str() );
 
-//    printf("\r\ninput:%s", input.c_str());
-//    printf("\r\noutput:%s", res.c_str());
-
     return res.length();
 }
 //-------------------------------------------------------------------

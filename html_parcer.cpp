@@ -31,7 +31,6 @@ int HtmlParcer(char * buff, ssize_t size) {
 
         string full_path = htmlFilesDir;
         if(inp_cmd[1] == "/") {
-
             full_path = htmlFilesDir + string("/") + string(DEFAULT_INDEX_FILE_NAME_1);
             FILE * f = fopen(full_path.c_str(), "r");
             if(f == NULL) {
@@ -73,8 +72,8 @@ int HtmlParcer(char * buff, ssize_t size) {
 
     sprintf(buff, "%s", res.c_str() );
 
-    printf("\r\ninput:%s", input.c_str());
-    printf("\r\noutput:%s", res.c_str());
+//    printf("\r\ninput:%s", input.c_str());
+//    printf("\r\noutput:%s", res.c_str());
 
     return res.length();
 }

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <ev.h>
 #include <strings.h>
 #include <string.h>
@@ -44,18 +45,35 @@ int mainSockDescr;
 void term_handler(int i)
 {
     shutdown(mainSockDescr, SHUT_RDWR);
-    if(i == SIGINT)
+/*    if(i == SIGINT)
         printf ("Terminating by SIGINT.\n");
     else if(i == SIGTERM)
         printf ("Terminating by SIGTERM.\n");
     else
-        printf ("Terminating.\n");
+        printf ("Terminating.\n");*/
     exit(EXIT_SUCCESS);
 }
 //-------------------------------------------------------------------
 int main(int argc, char **argv)
 {
-    htmlFilesDir = DEFAULT_FILES_DIR;
+    int opt_res;
+    std::string ip_addr = "";
+    int ip_port = -1;
+    htmlFilesDir = "";
+
+    while( (opt_res = getopt(argc, argv, "h:p:d:")) != -1) {
+        if(opt_res == 'h') {
+            ip_addr = optarg;
+        } else if(opt_res == 'p') {
+            ip_port = atoi(optarg);
+        } else if(opt_res == 'd'){
+            htmlFilesDir = optarg;
+        }
+    }
+    if(ip_addr == "" || ip_port == -1 || htmlFilesDir == "") {
+        printf("invalid arguments\r\n");
+        return 0;
+    }
 
     struct ev_loop *mainLoop = ev_default_loop(0);
 
@@ -67,8 +85,8 @@ int main(int argc, char **argv)
     struct sockaddr_in addr;
     bzero(&addr, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(12345);
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = htons(ip_port);
+    addr.sin_addr.s_addr = inet_addr(ip_addr.c_str());
 
     if( bind(mainSockDescr, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
         perror("bind() error : ");

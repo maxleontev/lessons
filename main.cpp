@@ -2,6 +2,7 @@
 #include <netinet/in.h>
 #include <ev.h>
 #include <strings.h>
+#include <string.h>
 #include <stdlib.h>
 
 #include "html_parcer.h"
@@ -21,6 +22,9 @@ void readCallBack(struct ev_loop *loop, struct ev_io *watcher, int revents) {
     } else {
         int snd_s = HtmlParcer(mainDataBuffer, recv_s);
         send(watcher->fd, mainDataBuffer, snd_s, MSG_NOSIGNAL);
+        ev_io_stop(loop, watcher);
+        close(watcher->fd);
+        free(watcher);
     }
 }
 //-------------------------------------------------------------------
@@ -33,12 +37,29 @@ void acceptCallback(struct ev_loop *loop, struct ev_io *watcher, int revents) {
     ev_io_start(loop, clientWatcher);
 }
 //-------------------------------------------------------------------
+
+int mainSockDescr;
+
+//-------------------------------------------------------------------
+void term_handler(int i)
+{
+    shutdown(mainSockDescr, SHUT_RDWR);
+    if(i == SIGINT)
+        printf ("Terminating by SIGINT.\n");
+    else if(i == SIGTERM)
+        printf ("Terminating by SIGTERM.\n");
+    else
+        printf ("Terminating.\n");
+    exit(EXIT_SUCCESS);
+}
+//-------------------------------------------------------------------
 int main(int argc, char **argv)
 {
+    htmlFilesDir = DEFAULT_FILES_DIR;
+
     struct ev_loop *mainLoop = ev_default_loop(0);
 
-    int sockDescr;
-    if( (sockDescr = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1 ) {
+    if( (mainSockDescr = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1 ) {
         perror("socket() error : ");
         return 0;
     }
@@ -49,20 +70,33 @@ int main(int argc, char **argv)
     addr.sin_port = htons(12345);
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-    if( bind(sockDescr, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+    if( bind(mainSockDescr, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
         perror("bind() error : ");
         return 0;
     }
 
-    if( listen(sockDescr, SOMAXCONN) == -1) {
+    if( listen(mainSockDescr, SOMAXCONN) == -1) {
         perror("listen() error : ");
         return 0;
     }
 
     struct ev_io acceptWatcher;
-    ev_io_init(&acceptWatcher, acceptCallback, sockDescr, EV_READ);
-
+    ev_io_init(&acceptWatcher, acceptCallback, mainSockDescr, EV_READ);
     ev_io_start(mainLoop, &acceptWatcher);
+
+
+
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = term_handler;
+    sigset_t newset;
+    sigemptyset(&newset);
+    sigaddset(&newset, SIGTERM);
+    sigaddset(&newset, SIGINT);
+    sa.sa_mask = newset;
+    sigaction(SIGTERM, &sa, 0);
+    sigaction(SIGINT, &sa, 0);
+
 
     while(1) {
         ev_loop(mainLoop, 0);

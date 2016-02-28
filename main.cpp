@@ -60,14 +60,17 @@ int main(int argc, char **argv)
     std::string ip_addr = "";
     int ip_port = -1;
     htmlFilesDir = "";
+    bool daemon = true;
 
-    while( (opt_res = getopt(argc, argv, "h:p:d:")) != -1) {
+    while( (opt_res = getopt(argc, argv, "h:p:d:x")) != -1) {
         if(opt_res == 'h') {
             ip_addr = optarg;
         } else if(opt_res == 'p') {
             ip_port = atoi(optarg);
         } else if(opt_res == 'd'){
             htmlFilesDir = optarg;
+        } else if(opt_res == 'x'){
+            daemon = false;
         }
     }
     if(ip_addr == "" || ip_port == -1 || htmlFilesDir == "") {
@@ -75,10 +78,27 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    struct ev_loop *mainLoop = ev_default_loop(0);
+    if(daemon) {
+        printf("starting in daemon mode\r\n");
+        if( fork() ) {
+            return 0;
+        }
+        umask(0);
+        if( setsid() < 0 )
+            return 0;
+        if((chdir("/")) < 0)
+            return 0;
+        close(STDIN_FILENO);
+        close(STDOUT_FILENO);
+        close(STDERR_FILENO);
+    } else {
+        printf("starting in normal mode\r\n");
+    }
 
+    struct ev_loop *mainLoop = ev_default_loop(0);
     if( (mainSockDescr = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1 ) {
-        perror("socket() error : ");
+        if(!daemon)
+            perror("socket() error : ");
         return 0;
     }
 
@@ -89,19 +109,20 @@ int main(int argc, char **argv)
     addr.sin_addr.s_addr = inet_addr(ip_addr.c_str());
 
     if( bind(mainSockDescr, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
-        perror("bind() error : ");
+        if(!daemon)
+            perror("bind() error : ");
         return 0;
     }
 
     if( listen(mainSockDescr, SOMAXCONN) == -1) {
-        perror("listen() error : ");
+        if(!daemon)
+            perror("listen() error : ");
         return 0;
     }
 
     struct ev_io acceptWatcher;
     ev_io_init(&acceptWatcher, acceptCallback, mainSockDescr, EV_READ);
     ev_io_start(mainLoop, &acceptWatcher);
-
 
 
     struct sigaction sa;
